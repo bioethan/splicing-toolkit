@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "splicing-toolkit"
+version = "0.1.0"
+description = "A toolkit designed to take bed files from experiments and generate detailed splicing info with as little user input as possible. Goal is to make this usable to analyze the LRS data from the nRNA experiments performed by Tucker a ways back."
+authors = ["Ethan Brown <ethan.brown@yale.edu>"]
+readme = "README.md"
+packages = [{include = "splicing_toolkit"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
