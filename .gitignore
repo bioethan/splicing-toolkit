@@ -1,3 +1,9 @@
 poetry.lock
 .python-version
+.gitignore
+*.ipynb
+.DS_Store
+__pycache__/
+data/
+tmp/
 
