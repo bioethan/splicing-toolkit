@@ -6,4 +6,4 @@ poetry.lock
 __pycache__/
 data/
 tmp/
-
+todo.md
