@@ -1,6 +1,7 @@
 import pathlib as pl
 import pandas as pd
 
+
 def gtf_to_bed12(path_gtf=None, out_dir="~/tmp"):
     """
     Converts the genes present in a GTF file to a BED12 for easy processing of
@@ -29,15 +30,23 @@ def gtf_to_bed12(path_gtf=None, out_dir="~/tmp"):
 
     # List of genes
     coding_genes = gtf_contents[gtf_contents['feature'] == 'gene']
-    coding_genes = coding_genes[coding_genes['attributes'].str.contains('protein_coding')]
-    coding_genes['gene_id'] = coding_genes['attributes'].str.extract(r'gene_id "(.*?)";', expand=False)
+    coding_genes = coding_genes[coding_genes['attributes']
+                                .str.contains('protein_coding')]
+    coding_genes['gene_id'] = coding_genes['attributes']\
+        .str.extract(r'gene_id "(.*?)";', expand=False)
 
     # List of exons
     coding_exons = gtf_contents[gtf_contents['feature'] == 'exon']
-    coding_exons = coding_exons[coding_exons['attributes'].str.contains('protein_coding')]
-    coding_exons['gene_id'] = coding_exons['attributes'].str.extract(r'gene_id "(.*?)";', expand=False)
-    coding_exons['exon_num'] = coding_exons['attributes'].str.extract(r'exon_number "(\d+)"')
-    coding_exons['exon_name'] = coding_exons['gene_id'] + '_exon_' + coding_exons['exon_num']
+    coding_exons = coding_exons[coding_exons['attributes']
+                                .str.contains('protein_coding')]
+    coding_exons['gene_id'] = coding_exons['attributes']\
+        .str.extract(r'gene_id "(.*?)";', expand=False)
+    coding_exons['exon_num'] = coding_exons['attributes']\
+        .str.extract(r'exon_number "(\d+)"')
+    coding_exons['exon_name'] = coding_exons['gene_id'] \
+        + '_exon_' \
+        + coding_exons['exon_num']
+
     coding_exons['exon_num'] = coding_exons['exon_num'].apply(int)
     coding_exons['length'] = coding_exons['end'] - coding_exons['start']
     coding_exons['length'] = coding_exons['length'].apply(str)

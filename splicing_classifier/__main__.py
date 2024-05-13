@@ -1,6 +1,5 @@
 import logging
 import argparse
-from classifier_module.classifier_utils import splicing_classifier
 
 
 logger = logging.getLogger(__name__)
@@ -22,6 +21,9 @@ parser.add_argument('--genome_annotation', '-g', type=str, required=True,
                     dest='genome_anno_path',
                     help='GTF/GFF containing information on the genome to\
                           which the long-read input is aligned')
+parser.add_argument('--mode', '-m', type=str, required=True,
+                    dest='action_mode',
+                    help='What mode of should the splicing classifier engage')
 
 args = parser.parse_args()
 

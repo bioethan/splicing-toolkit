@@ -43,48 +43,75 @@ def parse_bed12_introns_exons(bed12_row):
             introns.append([chrom, intron_start, intron_end,
                             f"{name}_intron_{intron_number}", ".", strand])
 
-    exon_df = pd.DataFrame(data=(exons), columns=['chrom', 'start', 'end', 'name', 'score', 'strand'])
-    intron_df = pd.DataFrame(data=(introns), columns=['chrom', 'start', 'end', 'name', 'score', 'strand'])
+    exon_df = pd.DataFrame(data=(exons),
+                           columns=['chrom',
+                                    'start',
+                                    'end',
+                                    'name',
+                                    'score',
+                                    'strand'])
+    intron_df = pd.DataFrame(data=(introns),
+                             columns=['chrom',
+                                      'start',
+                                      'end',
+                                      'name',
+                                      'score',
+                                      'strand'])
     return exon_df, intron_df
 
 
-def splicing_classifier(LRS_url, output_save):
+def splicing_classifier(gene_url, intron_url, exon_url, LRS_url, output_save):
     # First grabbing the gene and data beds
     data_file = pybed.BedTool(LRS_url)
-    genes_file = pybed.BedTool('/Users/ethanbrown/Documents/splicing_toolkit/splicing_toolkit/tmp/GTF_genes.bed')
-    intron_file = pd.read_csv('/Users/ethanbrown/Documents/splicing_toolkit/splicing_toolkit/tmp/GTF_introns.bed', sep='\t', names=['chromIntron', 'startIntron', 'endIntron', 'nameIntron', 'scoreIntron', 'strandIntron'])
-    exon_file = pd.read_csv('/Users/ethanbrown/Documents/splicing_toolkit/splicing_toolkit/tmp/GTF_exons.bed', sep='\t', names=['chromExon', 'startExon', 'endExon', 'nameExon', 'scoreExon', 'strandExon'])
+    genes_file = pybed.BedTool(gene_url)
+    intron_file = pd.read_csv(intron_url,
+                              sep='\t',
+                              names=['chromIntron',
+                                     'startIntron',
+                                     'endIntron',
+                                     'nameIntron',
+                                     'scoreIntron',
+                                     'strandIntron'])
+    exon_file = pd.read_csv(exon_url,
+                            sep='\t',
+                            names=['chromExon',
+                                   'startExon',
+                                   'endExon',
+                                   'nameExon',
+                                   'scoreExon',
+                                   'strandExon'])
     data_gene_intersect = data_file.intersect(genes_file, s=True, wo=True)
 
     # Output file var
     output_list = []
 
     # Defining the specific dfs from the gene intersect
-    df = data_gene_intersect.to_dataframe(header=None, names=["chrom",
-                                                              "start",
-                                                              "end",
-                                                              "name",
-                                                              "score",
-                                                              "strand",
-                                                              'thickStart',
-                                                              'thickEnd',
-                                                              'rgb',
-                                                              'blocks',
-                                                              'blockLengths',
-                                                              'blockStarts',
-                                                              'geneChrom',
-                                                              'geneStart',
-                                                              'geneEnd',
-                                                              'geneName',
-                                                              'geneScore',
-                                                              'geneStrand',
-                                                              'geneThickStart',
-                                                              'geneThickEnd',
-                                                              'geneRgb',
-                                                              'geneBlocks',
-                                                              'geneBlockLengths',
-                                                              'geneBlockStarts',
-                                                              'overlapBases'])
+    df = data_gene_intersect.to_dataframe(header=None,
+                                          names=['chrom',
+                                                 'start',
+                                                 'end',
+                                                 'name',
+                                                 'score',
+                                                 'strand',
+                                                 'thickStart',
+                                                 'thickEnd',
+                                                 'rgb',
+                                                 'blocks',
+                                                 'blockLengths',
+                                                 'blockStarts',
+                                                 'geneChrom',
+                                                 'geneStart',
+                                                 'geneEnd',
+                                                 'geneName',
+                                                 'geneScore',
+                                                 'geneStrand',
+                                                 'geneThickStart',
+                                                 'geneThickEnd',
+                                                 'geneRgb',
+                                                 'geneBlocks',
+                                                 'geneBlockLengths',
+                                                 'geneBlockStarts',
+                                                 'overlapBases'])
 
     # overlap_df drops most of the extra info about the genes to preserve
     # geneName and basic geneinfo
@@ -102,12 +129,14 @@ def splicing_classifier(LRS_url, output_save):
 
     # Enter the splicing analysis workflow
     print(LRS_url)
-    for i in tqdm(data_df['name']):
+    for lr_data_row in tqdm(data_df['name']):
 
         # Starting to create flags for the final output
         flag_string = []
-        name_df = overlap_df.loc[overlap_df['name'] == i].reset_index(drop=True)
-        long_read_bed_df = data_df.loc[data_df['name'] == i].reset_index(drop=True)
+        name_df = overlap_df.loc[overlap_df['name'] == lr_data_row]\
+            .reset_index(drop=True)
+        long_read_bed_df = data_df.loc[data_df['name'] == lr_data_row]\
+            .reset_index(drop=True)
 
         # First check, determine if there are more than gene for a given LR
         if name_df.shape[0] > 1:
@@ -118,9 +147,12 @@ def splicing_classifier(LRS_url, output_save):
             # Current method is gene with largest amount of overlap
 
             # Flag string multigene overlap
-            flag_string.append(f'multiple_gene_overlap:{",".join(name_df["geneName"])}')
-            flag_string.append(f'gene_lengths:{",".join((name_df["geneEnd"] - name_df["geneStart"]).apply(str))}')
-            flag_string.append(f'gene_overlap_bases:{",".join(name_df["overlapBases"].apply(str))}')
+            flag_string.append(
+                f'multiple_gene_overlap:{",".join(name_df["geneName"])}')
+            flag_string.append(
+                f'gene_lengths:{",".join((name_df["geneEnd"] - name_df["geneStart"]).apply(str))}')
+            flag_string.append(
+                f'gene_overlap_bases:{",".join(name_df["overlapBases"].apply(str))}')
 
             # Final update to name_df for finding gene name
             name_df = name_df.iloc[[name_df['overlapBases'].idxmax()]].reset_index(drop=True)
@@ -128,7 +160,8 @@ def splicing_classifier(LRS_url, output_save):
         # Grabbing subsequent gene name for splicing analysis
         gene_name = name_df['geneName'][0]
 
-        # If less than 25 bases of overlap with the gene of interest, trash and move on
+        # If less than 25 bases of overlap with the gene of interest,
+        # trash and move on
         if name_df['overlapBases'][0] < 25:
             continue
 
@@ -139,14 +172,17 @@ def splicing_classifier(LRS_url, output_save):
         if introns_exist:
 
             # Generating intron and exon dfs for splicing classification
-            intron_df = intron_file.loc[intron_file['nameIntron'].str.contains(gene_name)]
-            exon_df = exon_file.loc[exon_file['nameExon'].str.contains(gene_name)]
+            intron_df = intron_file.loc[intron_file['nameIntron']
+                                        .str.contains(gene_name)]
+            exon_df = exon_file.loc[exon_file['nameExon']
+                                    .str.contains(gene_name)]
 
             # Flagging single intron genes
             if intron_df.shape[0] == 1:
                 flag_string.append('single_intron_gene')
 
-            long_read_exons, long_read_introns = parse_bed12_introns_exons(long_read_bed_df)
+            long_read_exons, long_read_introns = parse_bed12_introns_exons(
+                                                          long_read_bed_df)
 
             # Checking assumptions about 5-prime and 3-prime positions of LR
             # Should contain all exons and introns between those two points in
@@ -155,11 +191,17 @@ def splicing_classifier(LRS_url, output_save):
             lr_end = long_read_bed_df['end'][0]
 
             # Building logic to grab expected introns and exons for a given LR
-            expected_introns_df = intron_df.loc[(intron_df['startIntron'] >= lr_start) & (intron_df['endIntron'] <= lr_end)]
-            expected_exons_df = exon_df.loc[(exon_df['endExon'] >= lr_start) & (exon_df['startExon'] <= lr_end)]
+            expected_introns_df = intron_df.loc[
+                                 (intron_df['startIntron'] >= lr_start) &
+                                 (intron_df['endIntron'] <= lr_end)]
+            expected_exons_df = exon_df.loc[
+                                (exon_df['endExon'] >= lr_start) &
+                                (exon_df['startExon'] <= lr_end)]
 
             # Checking to see if 5-prime end of LR is not in exon 1
-            if np.min(expected_exons_df['nameExon'].str.split('_').apply(lambda x: int(x[2]))) > 1:
+            if np.min(expected_exons_df['nameExon'].str.split('_')
+                      .apply(lambda x: int(x[2]))) > 1:
+
                 flag_string.append('5_prime_starts_after_first_exon')
 
             # If a LR doesn't cover a single intron completely
@@ -169,7 +211,11 @@ def splicing_classifier(LRS_url, output_save):
                 num_introns_spliced = 0
                 # TODO add an output then break here
                 # OUTPUT i, gene_name, splicing_status, none, flag_string
-                output_list.append([i, gene_name, splicing_status, num_introns_spliced, ';'.join(flag_string)])
+                output_list.append([lr_data_row,
+                                    gene_name,
+                                    splicing_status,
+                                    num_introns_spliced,
+                                    ';'.join(flag_string)])
                 continue
 
             # If there are no LR introns, but there should be, it is unspliced
@@ -178,7 +224,11 @@ def splicing_classifier(LRS_url, output_save):
                 num_introns_spliced = 0
                 # TODO add an output then continue here
                 # OUTPUT i, gene_name, splicing_status, none, flag_string
-                output_list.append([i, gene_name, splicing_status, num_introns_spliced, ';'.join(flag_string)])
+                output_list.append([lr_data_row,
+                                    gene_name,
+                                    splicing_status,
+                                    num_introns_spliced,
+                                    ';'.join(flag_string)])
                 continue
 
             # Bed files for intron and exon
@@ -190,26 +240,74 @@ def splicing_classifier(LRS_url, output_save):
             # We want to define a tolerance (about how many bases are required
             # for an overlap to officially occur?)
             # Current threshold is greater than 5 bases
-            lr_exons_gene_introns = long_read_exons_bed.intersect(expected_intron_bed, wo=True)
-            lr_introns_gene_exons = long_read_introns_bed.intersect(expected_exon_bed, wo=True)
-            lr_introns_gene_introns = long_read_introns_bed.intersect(expected_intron_bed, wo=True)
+            lr_exons_gene_introns = long_read_exons_bed.intersect(
+                                    expected_intron_bed, wo=True)
+            lr_introns_gene_exons = long_read_introns_bed.intersect(
+                                    expected_exon_bed, wo=True)
+            lr_introns_gene_introns = long_read_introns_bed.intersect(
+                                      expected_intron_bed, wo=True)
 
             # Now time to define splicing status for various types of events
-            #lr_exons_gene_exons_df = lr_exons_gene_exons.to_dataframe(header=None, names=["chromLR", "startLR", "endLR", "nameLR", "scoreLR", "strandLR", 'chromExon', 'startExon', 'endExon', 'nameExon', 'scoreExon', 'strandExon', 'overlapBases'])
-            lr_exons_gene_introns_df = lr_exons_gene_introns.to_dataframe(header=None, names=["chromLR", "startLR", "endLR", "nameLR", "scoreLR", "strandLR", 'chromIntron', 'startIntron', 'endIntron', 'nameIntron', 'scoreIntron', 'strandIntron', 'overlapBases'])
-            lr_introns_gene_exons_df = lr_introns_gene_exons.to_dataframe(header=None, names=["chromLR", "startLR", "endLR", "nameLR", "scoreLR", "strandLR", 'chromExon', 'startExon', 'endExon', 'nameExon', 'scoreExon', 'strandExon', 'overlapBases'])
-            lr_introns_gene_introns_df = lr_introns_gene_introns.to_dataframe(header=None, names=["chromLR", "startLR", "endLR", "nameLR", "scoreLR", "strandLR", 'chromIntron', 'startIntron', 'endIntron', 'nameIntron', 'scoreIntron', 'strandIntron', 'overlapBases'])
+            lr_exons_gene_introns_df = lr_exons_gene_introns.to_dataframe(
+                header=None,
+                names=['chromLR',
+                       'startLR',
+                       'endLR',
+                       'nameLR',
+                       'scoreLR',
+                       'strandLR',
+                       'chromIntron',
+                       'startIntron',
+                       'endIntron',
+                       'nameIntron',
+                       'scoreIntron',
+                       'strandIntron',
+                       'overlapBases'])
 
-            # Now filtering for more than 7 overlapping bases to allow for some tolerance
-            #lr_exons_gene_exons_df = lr_exons_gene_exons_df.loc[lr_exons_gene_exons_df['overlapBases'] > 7]
+            lr_introns_gene_exons_df = lr_introns_gene_exons.to_dataframe(
+                header=None,
+                names=['chromLR',
+                       'startLR',
+                       'endLR',
+                       'nameLR',
+                       'scoreLR',
+                       'strandLR',
+                       'chromExon',
+                       'startExon',
+                       'endExon',
+                       'nameExon',
+                       'scoreExon',
+                       'strandExon',
+                       'overlapBases'])
+            lr_introns_gene_introns_df = lr_introns_gene_introns.to_dataframe(
+                header=None,
+                names=['chromLR',
+                       'startLR',
+                       'endLR',
+                       'nameLR',
+                       'scoreLR',
+                       'strandLR',
+                       'chromIntron',
+                       'startIntron',
+                       'endIntron',
+                       'nameIntron',
+                       'scoreIntron',
+                       'strandIntron',
+                       'overlapBases'])
+
+            # Now filtering for more than 7 overlapping bases to allow for
+            # some tolerance
             if not lr_exons_gene_introns_df.empty:
-                lr_exons_gene_introns_df = lr_exons_gene_introns_df.loc[lr_exons_gene_introns_df['overlapBases'] > 7]
+                lr_exons_gene_introns_df = lr_exons_gene_introns_df.loc[
+                    lr_exons_gene_introns_df['overlapBases'] > 7]
 
             if not lr_introns_gene_exons_df.empty:
-                lr_introns_gene_exons_df = lr_introns_gene_exons_df.loc[lr_introns_gene_exons_df['overlapBases'] > 7]
+                lr_introns_gene_exons_df = lr_introns_gene_exons_df.loc[
+                    lr_introns_gene_exons_df['overlapBases'] > 7]
 
             if not lr_introns_gene_introns_df.empty:
-                lr_introns_gene_introns_df = lr_introns_gene_introns_df.loc[lr_introns_gene_introns_df['overlapBases'] > 7]
+                lr_introns_gene_introns_df = lr_introns_gene_introns_df.loc[
+                    lr_introns_gene_introns_df['overlapBases'] > 7]
 
             num_introns_spliced = long_read_introns.shape[0]
 
@@ -235,7 +333,8 @@ def splicing_classifier(LRS_url, output_save):
         # Workflow for single exon genes
         else:
             flag_string.append('single_exon_gene')
-            # Checking for alternative splicing (splicing in a single exon gene)
+            # Checking for alternative splicing
+            # (splicing in a single exon gene)
             if long_read_bed_df['blocks'][0] > 1:
                 flag_string.append(f'count_splicing_events:{long_read_bed_df["blocks"][0]}')
                 num_introns_spliced = long_read_bed_df['blocks'][0]
@@ -244,7 +343,17 @@ def splicing_classifier(LRS_url, output_save):
                 splicing_status = 'single_exon_unspliced'
                 num_introns_spliced = 0
 
-        output_list.append([i, gene_name, splicing_status, num_introns_spliced, ';'.join(flag_string)])
+        output_list.append([lr_data_row,
+                            gene_name,
+                            splicing_status,
+                            num_introns_spliced,
+                            ';'.join(flag_string)])
 
-    final_df = pd.DataFrame(output_list, columns=['LR_name', 'gene_name', 'splicing_status', 'num_introns', 'flagged_reasons'])
+    final_df = pd.DataFrame(output_list,
+                            columns=['LR_name',
+                                     'gene_name',
+                                     'splicing_status',
+                                     'num_introns',
+                                     'flagged_reasons'])
+
     final_df.to_csv(output_save, index=False, sep='\t')
