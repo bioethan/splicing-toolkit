@@ -217,10 +217,10 @@ def process_gff3(path_gff3=None):
                                                           'end', 'strand',
                                                           'attributes', 'score']]
 
-    exon_df['parent_gene_id'] = exon_df['attributes'].str.extract(r'Parent=(.*)$')
+    exon_df['parent_transcript_id'] = exon_df['attributes'].str.extract(r'Parent=(.*)$')
     exon_df['exon_id'] = exon_df['attributes'].str.extract(r'ID=(.*?);')
 
-    intron_df['parent_gene_id'] = intron_df['attributes'].str.extract(r'Parent=(.*)$')
+    intron_df['parent_transcript_id'] = intron_df['attributes'].str.extract(r'Parent=(.*)$')
     intron_df['intron_id'] = intron_df['attributes'].str.extract(r'ID=(.*?);')
 
     transcript_df = transcript_df[['#chrom', 'start',
@@ -230,12 +230,12 @@ def process_gff3(path_gff3=None):
     exon_df = exon_df[['#chrom', 'start',
                        'end', 'exon_id',
                        'score', 'strand',
-                       'parent_gene_id']].set_index('parent_gene_id')
+                       'parent_transcript_id']].set_index('parent_transcript_id')
 
     intron_df = intron_df[['#chrom', 'start',
                            'end', 'intron_id',
                            'score', 'strand',
-                           'parent_gene_id']].set_index('parent_gene_id')
+                           'parent_transcript_id']].set_index('parent_transcript_id')
 
     return transcript_df, exon_df, intron_df
 
