@@ -19,7 +19,7 @@ parser.add_argument('--output-dir', '-o', type=str, required=True,
                     help='')
 parser.add_argument('--genome_annotation', '-g', type=str, required=True,
                     dest='genome_anno_path',
-                    help='GTF/GFF containing information on the genome to\
+                    help='GFF3 file containing information on the genome to\
                           which the long-read input is aligned')
 parser.add_argument('--mode', '-m', type=str, required=True,
                     dest='action_mode',
