@@ -4,62 +4,6 @@ from tqdm import tqdm
 import pybedtools as pybed
 
 
-def parse_bed12_introns_exons(bed12_row):
-    columns = bed12_row.iloc[0].values.flatten().tolist()
-    chrom = columns[0]
-    start = int(columns[1])
-    name = columns[3]
-    strand = columns[5]
-    block_count = int(columns[9])
-    block_sizes = list(map(int, columns[10].split(',')))
-    block_starts = list(map(int, columns[11].split(',')))
-
-    exons = []
-    introns = []
-
-    for i in range(block_count):
-        exon_start = start + block_starts[i]
-        exon_end = exon_start + block_sizes[i]
-
-        # Numbering for exons based on the strand
-        if strand == '+':
-            exon_number = i + 1
-        else:
-            exon_number = block_count - i
-
-        exons.append([chrom, exon_start, exon_end,
-                      f"{name}_exon_{exon_number}", ".", strand])
-
-        if i < block_count - 1:
-            intron_start = exon_end
-            intron_end = start + block_starts[i + 1]
-
-            # Numbering for introns between exons based on the strand
-            if strand == '+':
-                intron_number = i + 1
-            else:
-                intron_number = (block_count - i - 1)
-
-            introns.append([chrom, intron_start, intron_end,
-                            f"{name}_intron_{intron_number}", ".", strand])
-
-    exon_df = pd.DataFrame(data=(exons),
-                           columns=['chrom',
-                                    'start',
-                                    'end',
-                                    'name',
-                                    'score',
-                                    'strand'])
-    intron_df = pd.DataFrame(data=(introns),
-                             columns=['chrom',
-                                      'start',
-                                      'end',
-                                      'name',
-                                      'score',
-                                      'strand'])
-    return exon_df, intron_df
-
-
 def splicing_classifier(gene_url, intron_url, exon_url, LRS_url, output_save):
     # First grabbing the gene and data beds
     data_file = pybed.BedTool(LRS_url)
@@ -357,3 +301,11 @@ def splicing_classifier(gene_url, intron_url, exon_url, LRS_url, output_save):
                                      'flagged_reasons'])
 
     final_df.to_csv(output_save, index=False, sep='\t')
+
+
+def main():
+    return 0
+
+
+if __name__ == '__main__':
+    main()
