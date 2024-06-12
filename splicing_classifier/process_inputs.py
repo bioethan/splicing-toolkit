@@ -131,15 +131,23 @@ def process_gff_utrs(path_gff3=None):
         'attributes'].str.extract(r'ID=(.*?);')
 
     # Format final returned UTR dataframes
-    five_prime_utr_df = five_prime_utr_df[['#chrom', 'start',
-                                           'end', 'five_prime_utr_id',
-                                           'score', 'strand',
-                                           'parent_transcript_id']].set_index('parent_transcript_id')
+    five_prime_utr_df = five_prime_utr_df[['#chrom',
+                                           'start',
+                                           'end',
+                                           'five_prime_utr_id',
+                                           'score',
+                                           'strand',
+                                           'parent_transcript_id']
+                                          ].set_index('parent_transcript_id')
 
-    three_prime_utr_df = three_prime_utr_df[['#chrom', 'start',
-                                             'end', 'three_prime_utr_id',
-                                             'score', 'strand',
-                                             'parent_transcript_id']].set_index('parent_transcript_id')
+    three_prime_utr_df = three_prime_utr_df[['#chrom',
+                                             'start',
+                                             'end',
+                                             'three_prime_utr_id',
+                                             'score',
+                                             'strand',
+                                             'parent_transcript_id']
+                                            ].set_index('parent_transcript_id')
 
     return five_prime_utr_df, three_prime_utr_df
 

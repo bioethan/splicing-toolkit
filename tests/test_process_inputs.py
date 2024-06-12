@@ -1,4 +1,4 @@
-from splicing_classifier.input_module.process_gff import process_gff, \
+from splicing_classifier.process_inputs import process_gff, \
     process_gff_utrs, parse_long_read_introns_exons
 
 
