@@ -20,33 +20,48 @@ def process_gff(path_gff3=None):
       path_gff3: The path to the GFF3 file to process.
 
     Returns:
-        transcript_df: A pandas dataframe containing transcript coordinate
+        transcript_df (pd.DataFrame): A dataframe containing transcript
+        coordinate information.
+        exon_df (pd.DataFrame): A dataframe containing exon coordinate
         information.
-        exon_df: A pandas dataframe containing exon coordinate information.
-        intron_df: A pandas dataframe containing intron coordinate information.
+        intron_df (pd.DataFrame): A dataframe containing intron coordinate
+        information.
     """
     # Read in the GFF3 file
     gff3_df = pd.read_csv(path_gff3, sep='\t', comment='#',
                           header=None,
-                          names=['#chrom', 'source', 'type',
-                                 'start', 'end', 'score',
-                                 'strand', 'phase', 'attributes'])
+                          names=['chrom',
+                                 'source',
+                                 'type',
+                                 'start',
+                                 'end',
+                                 'score',
+                                 'strand',
+                                 'phase',
+                                 'attributes'])
 
     # Now process mRNA transcript info
-    transcript_df = gff3_df.loc[gff3_df['type'] == 'mRNA'][['#chrom', 'start',
-                                                            'end', 'strand',
+    transcript_df = gff3_df.loc[gff3_df['type'] == 'mRNA'][['chrom',
+                                                            'start',
+                                                            'end',
+                                                            'strand',
                                                             'attributes',
                                                             'score']]
     transcript_df['transcript_id'] = transcript_df['attributes'].str.extract(
         r'ID=(.*?);')
 
     # Now onto processing the exons and intron info
-    exon_df = gff3_df.loc[gff3_df['type'] == 'CDS'][['#chrom', 'start',
-                                                     'end', 'strand',
-                                                     'attributes', 'score']]
+    exon_df = gff3_df.loc[gff3_df['type'] == 'CDS'][['chrom',
+                                                     'start',
+                                                     'end',
+                                                     'strand',
+                                                     'attributes',
+                                                     'score']]
 
-    intron_df = gff3_df.loc[gff3_df['type'] == 'intron'][['#chrom', 'start',
-                                                          'end', 'strand',
+    intron_df = gff3_df.loc[gff3_df['type'] == 'intron'][['chrom',
+                                                          'start',
+                                                          'end',
+                                                          'strand',
                                                           'attributes',
                                                           'score']]
 
@@ -60,19 +75,28 @@ def process_gff(path_gff3=None):
     intron_df['intron_id'] = intron_df['attributes'].str.extract(r'ID=(.*?);')
 
     # Format final returned dataframes
-    transcript_df = transcript_df[['#chrom', 'start',
-                                   'end', 'transcript_id',
-                                   'score', 'strand']]
+    transcript_df = transcript_df[['chrom',
+                                   'start',
+                                   'end',
+                                   'transcript_id',
+                                   'score',
+                                   'strand']]
 
-    exon_df = exon_df[['#chrom', 'start',
-                       'end', 'exon_id',
-                       'score', 'strand',
+    exon_df = exon_df[['chrom',
+                       'start',
+                       'end',
+                       'exon_id',
+                       'score',
+                       'strand',
                        'parent_transcript_id']].set_index(
                            'parent_transcript_id')
 
-    intron_df = intron_df[['#chrom', 'start',
-                           'end', 'intron_id',
-                           'score', 'strand',
+    intron_df = intron_df[['chrom',
+                           'start',
+                           'end',
+                           'intron_id',
+                           'score',
+                           'strand',
                            'parent_transcript_id']].set_index(
                                'parent_transcript_id')
 
@@ -90,21 +114,27 @@ def process_gff_utrs(path_gff3=None):
       path_gff3: The path to the GFF3 file to process.
 
     Returns:
-        five_prime_utr_df: A pandas dataframe containing 5' UTR coordinate
-        information.
-        three_prime_utr_df: A pandas dataframe containing 3' UTR coordinate
-        information.
+        five_prime_utr_df (pd.DataFrame): A dataframe containing 5' UTR
+        coordinate information.
+        three_prime_utr_df (pd.DataFrame): A dataframe containing 3' UTR
+        coordinate information.
     """
     # Read in the GFF3 file
     gff3_df = pd.read_csv(path_gff3, sep='\t', comment='#',
                           header=None,
-                          names=['#chrom', 'source', 'type',
-                                 'start', 'end', 'score',
-                                 'strand', 'phase', 'attributes'])
+                          names=['chrom',
+                                 'source',
+                                 'type',
+                                 'start',
+                                 'end',
+                                 'score',
+                                 'strand',
+                                 'phase',
+                                 'attributes'])
 
     # Now onto processing the exons and intron info
     five_prime_utr_df = gff3_df.loc[gff3_df['type'] == 'five_prime_UTR'][[
-                                                                  '#chrom',
+                                                                  'chrom',
                                                                   'start',
                                                                   'end',
                                                                   'strand',
@@ -112,7 +142,7 @@ def process_gff_utrs(path_gff3=None):
                                                                   'score']]
 
     three_prime_utr_df = gff3_df.loc[gff3_df['type'] == 'three_prime_UTR'][[
-                                                                '#chrom',
+                                                                'chrom',
                                                                 'start',
                                                                 'end',
                                                                 'strand',
@@ -131,7 +161,7 @@ def process_gff_utrs(path_gff3=None):
         'attributes'].str.extract(r'ID=(.*?);')
 
     # Format final returned UTR dataframes
-    five_prime_utr_df = five_prime_utr_df[['#chrom',
+    five_prime_utr_df = five_prime_utr_df[['chrom',
                                            'start',
                                            'end',
                                            'five_prime_utr_id',
@@ -140,7 +170,7 @@ def process_gff_utrs(path_gff3=None):
                                            'parent_transcript_id']
                                           ].set_index('parent_transcript_id')
 
-    three_prime_utr_df = three_prime_utr_df[['#chrom',
+    three_prime_utr_df = three_prime_utr_df[['chrom',
                                              'start',
                                              'end',
                                              'three_prime_utr_id',
@@ -152,24 +182,23 @@ def process_gff_utrs(path_gff3=None):
     return five_prime_utr_df, three_prime_utr_df
 
 
-# TODO: Write code to parse out BED12 rows into the
-# consistuent exons and introns for splicing classification
 def parse_long_read_introns_exons(long_read_bed12):
     """
     Function to parse a BED12 row containing a single long-read into its
     constituent exons and introns.
 
     Args:
-        long_read_bed12: A pandas dataframe containing a single row of a BED12
+        long_read_bed12 : A pandas dataframe containing a single row of a BED12
         file.
 
     Returns:
-        long_read_exons: A pandas dataframe containing information on the exons
-        present in the current long-read data.
-        long_read_introns: A pandas dataframe containing information on the
-        introns present in the current long-read data.
+        long_read_exons (pd.DataFrame): A dataframe containing information on
+        the exons present in the current long-read data.
+        long_read_introns (pd.DataFrame): A dataframe containing information
+        on the introns present in the current long-read data.
     """
 
+    # May need to alter this depending on what I pass in as the long read row
     columns = long_read_bed12.iloc[0].values.flatten().tolist()
     chrom = columns[0]
     start = int(columns[1])

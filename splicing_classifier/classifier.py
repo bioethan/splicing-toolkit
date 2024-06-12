@@ -2,74 +2,98 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 import pybedtools as pybed
+import multiprocessing as mp
 
 
-def splicing_classifier(gene_url, intron_url, exon_url, LRS_url, output_save):
+def classify_reads(lr_bed12_row, ref_exon_df, ref_intron_df):
+    return 0
+
+
+def worker(chunk, ref_exon_df, ref_intron_df):
+    """
+    Worker function for multiprocessing. Applies classify_reads to each row in
+    a chunk of a DataFrame.
+
+    Args:
+        chunk (pd.DataFrame): A chunk of a DataFrame containing long read data.
+        ref_exon_df (pd.DataFrame): A DataFrame containing reference exon data.
+        ref_intron_df (pd.DataFrame): A DataFrame containing reference intron
+        data.
+
+    Returns:
+        A DataFrame containing the results of classify_reads applied to each
+        row in the chunk.
+    """
+    return chunk.apply(classify_reads,
+                       args=(ref_exon_df, ref_intron_df),
+                       axis=1)
+
+
+def process_long_reads(lr_data_df, ref_transcript_df, ref_exon_df, ref_intron_df):
+    """
+    Process the long read sequencing data from lr_data_df and assign splicing
+    status to each read based on the reference transcript data in ref_transcript_df,
+    ref_exon_df, and ref_intron_df.
+
+    Args:
+        lr_data_df (pd.DataFrame): A DataFrame containing long read sequencing
+        data.
+        ref_transcript_df (pd.DataFrame): A DataFrame containing reference
+        transcript data.
+        ref_exon_df (pd.DataFrame): A DataFrame containing reference exon data.
+        ref_intron_df (pd.DataFrame): A DataFrame containing reference intron
+        data.
+
+    Returns:
+        A DataFrame containing the results of the splicing analysis.
+    """
     # First grabbing the gene and data beds
-    data_file = pybed.BedTool(LRS_url)
-    genes_file = pybed.BedTool(gene_url)
-    intron_file = pd.read_csv(intron_url,
-                              sep='\t',
-                              names=['chromIntron',
-                                     'startIntron',
-                                     'endIntron',
-                                     'nameIntron',
-                                     'scoreIntron',
-                                     'strandIntron'])
-    exon_file = pd.read_csv(exon_url,
-                            sep='\t',
-                            names=['chromExon',
-                                   'startExon',
-                                   'endExon',
-                                   'nameExon',
-                                   'scoreExon',
-                                   'strandExon'])
-    data_gene_intersect = data_file.intersect(genes_file, s=True, wo=True)
+    lr_data_bed = pybed.BedTool.from_dataframe(lr_data_df)
+    ref_transcript_bed = pybed.BedTool.from_dataframe(ref_transcript_df)
 
-    # Output file var
-    output_list = []
+    data_gene_intersect = lr_data_bed.intersect(ref_transcript_bed,
+                                                s=True,
+                                                wo=True)
 
     # Defining the specific dfs from the gene intersect
-    df = data_gene_intersect.to_dataframe(header=None,
-                                          names=['chrom',
-                                                 'start',
-                                                 'end',
-                                                 'name',
-                                                 'score',
-                                                 'strand',
-                                                 'thickStart',
-                                                 'thickEnd',
-                                                 'rgb',
-                                                 'blocks',
-                                                 'blockLengths',
-                                                 'blockStarts',
-                                                 'geneChrom',
-                                                 'geneStart',
-                                                 'geneEnd',
-                                                 'geneName',
-                                                 'geneScore',
-                                                 'geneStrand',
-                                                 'geneThickStart',
-                                                 'geneThickEnd',
-                                                 'geneRgb',
-                                                 'geneBlocks',
-                                                 'geneBlockLengths',
-                                                 'geneBlockStarts',
-                                                 'overlapBases'])
+    overlap_df = data_gene_intersect.to_dataframe(header=None,
+                                                  names=['lr_chrom',
+                                                         'lr_start',
+                                                         'lr_end',
+                                                         'lr_name',
+                                                         'lr_score',
+                                                         'lr_strand',
+                                                         'lr_thick_start',
+                                                         'lr_thick_end',
+                                                         'lr_rgb',
+                                                         'lr_blocks',
+                                                         'lr_block_lengths',
+                                                         'lr_block_starts',
+                                                         'transcript_chrom',
+                                                         'transcript_start',
+                                                         'transcript_end',
+                                                         'transcript_name',
+                                                         'transcript_score',
+                                                         'transcript_strand'
+                                                         'overlap_bases'])
 
-    # overlap_df drops most of the extra info about the genes to preserve
-    # geneName and basic geneinfo
-    overlap_df = df[['chrom', 'start', 'end', 'name', 'score', 'strand',
-                     'thickStart', 'thickEnd', 'rgb', 'blocks', 'blockLengths',
-                     'blockStarts', 'geneName', 'geneStart', 'geneEnd',
-                     'geneBlocks', 'geneBlockStarts', 'geneBlockLengths',
-                     'overlapBases']]
+    # Split the overlap_df into chunks for multiprocessing
+    chunks = np.array_split(overlap_df, mp.cpu_count())
+
+    # Create a multiprocessing Pool and apply the worker function to each chunk
+    with mp.Pool() as pool:
+        results = pool.starmap(worker, [(chunk, ref_exon_df, ref_intron_df) for chunk in chunks])
+
+    # Concatenate the results back into a single DataFrame
+    return pd.concat(results)
 
     # data_df contains information about the reads that map to specific genes,
     # effectively a bed12 of those overlapping LRs
     data_df = df[['chrom', 'start', 'end', 'name', 'score', 'strand',
                   'thickStart', 'thickEnd', 'rgb', 'blocks', 'blockLengths',
                   'blockStarts']].drop_duplicates()
+    
+    classify_reads(overlap_df, ref_exon_df, ref_intron_df)
 
     # Enter the splicing analysis workflow
     print(LRS_url)
