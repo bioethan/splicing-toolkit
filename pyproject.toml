@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A toolkit designed to take bed files from experiments and generate detailed splicing info with as little user input as possible. Goal is to make this usable to analyze the LRS data from the nRNA experiments performed by Tucker a ways back."
 authors = ["Ethan Brown <ethan.brown@yale.edu>"]
 readme = "README.md"
-packages = [{include = "splicing_toolkit"}]
+packages = [{include = "splicing_classifier"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -22,6 +22,7 @@ tqdm = "^4.65.0"
 ipython = "^8.24.0"
 flake8 = "^7.0.0"
 pytest = "^8.2.0"
+ipykernel = "^6.29.4"
 
 [build-system]
 requires = ["poetry-core"]
