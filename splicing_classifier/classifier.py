@@ -4,62 +4,83 @@ import pybedtools as pybed
 import multiprocessing as mp
 from process_inputs import parse_long_read_introns_exons
 
+# TODO: Allow for more specification in multiprocessing.
+# TODO: Add more flags for different types of splicing events
+# TODO: Generate more test scenarios for the classifier
+# TODO: Correct flake8 error messages (somehow...)
+# TODO: Implement main functionality (or remove, tbd)
+# TODO: Change implementation of pybedtools to clean up files more quickly
+#       Need to find implementation where they use with statement to
+#       automatically clean up files (and before python exits)
 
-def classify_reads(lr_bed12_row, ref_exon_df, ref_intron_df):
+
+def classify_reads(lr_bed_row_df, ref_exon_df, ref_intron_df):
+    """
+    Classify long reads based on their overlap with reference transcripts.
+
+    Args:
+    lr_bed_row_df (pd.DataFrame): A DataFrame containing long read data
+    that has been intersected against the transcript_df taken from
+    processing the GFF.
+    ref_exon_df (pd.DataFrame): A DataFrame containing reference exon data
+    generated from the GFF.
+    ref_intron_df (pd.DataFrame): A DataFrame containing reference intron data
+    generated from the GFF.
+
+    Returns:
+    A list containing the long read name, the most likely transcript ID,
+    the splicing status, the number of introns spliced, and any flags.
+    """
+    # String containing all relevant flags thrown during processing
     flag_string = []
-
-    # First check, determine if there are more than gene for a given LR
-    if lr_bed12_row.shape[0] > 1:
-
-        # Flag string multigene overlap
+    if lr_bed_row_df.shape[0] > 1:
+        # Adding information about the multiple gene overlaps and
+        # lengths of gene/overlaps
         flag_string.append(
-            f'multiple_gene_overlap:{",".join(lr_bed12_row["transcript_name"])}')
+            f'multiple_gene_overlap:{",".join(lr_bed_row_df.transcript_name)}')
         flag_string.append(
-            f'gene_lengths:{",".join(int(lr_bed12_row["transcript_end"]) - int(lr_bed12_row["transcript_start"]))}')
+            f'gene_lengths:{",".join((lr_bed_row_df.transcript_end - lr_bed_row_df.transcript_start).apply(str))}')
         flag_string.append(
-            f'gene_overlap_bases:{",".join(lr_bed12_row["overlap_bases"].apply(str))}')
+            f'gene_overlap_bases:{",".join(lr_bed_row_df.overlap_bases.apply(str))}')
 
-        # Final update to name_df for finding gene name
-        lr_bed12_row = lr_bed12_row.iloc[[lr_bed12_row['overlap_bases'].idxmax()]].reset_index(drop=True)
+    # Getting the correct row from the lr_bed12 and the transcript
+    # that has the greatest overlap with the long_read
+    lr_bed_row = lr_bed_row_df.loc[lr_bed_row_df.overlap_bases.idxmax()]
+    overlapping_transcript_name = lr_bed_row.transcript_name
 
-    # Grabbing subsequent gene name for splicing analysis
-    transcript_name = lr_bed12_row['transcript_name'][0]
+    # Getting the exon and intron info for that transcript
+    transcript_exons = ref_exon_df.loc[[overlapping_transcript_name]]
+    transcript_introns = ref_intron_df.loc[[overlapping_transcript_name]]
 
-    # TODO: If less than 25 bases of overlap with the gene of interest,
-    # trash and move on
+    introns_exist = (transcript_exons.shape[0] > 1)
 
-    # Grab intron and exon information for the transcript associated 
-    # with the long-read of interest
-    associated_exon_df = ref_exon_df.loc[ref_exon_df.parent_transcript_id == transcript_name]
-    associated_intron_df = ref_intron_df.loc[ref_intron_df.parent_transcript_id == transcript_name]
-
-    introns_exist = (ref_exon_df.loc[ref_exon_df.parent_transcript_id == transcript_name].shape[0] > 1)
-
-    # Workflow for multi-exon genes
+    # Entering the intron classification workflow
     if introns_exist:
 
-        # Flagging single intron genes
-        if associated_intron_df.shape[0] == 1:
+        # Flagging single_intron_genes
+        if transcript_introns.shape[0] == 1:
             flag_string.append('single_intron_gene')
 
-        long_read_exons, long_read_introns = parse_long_read_introns_exons(lr_bed12_row)
+        long_read_exons, long_read_introns = parse_long_read_introns_exons(lr_bed_row)
 
-        # Checking assumptions about 5-prime and 3-prime positions of LR
-        # Should contain all exons and introns between those two points in
-        # the read
-        lr_start = lr_bed12_row['lr_start'][0]
-        lr_end = lr_bed12_row['lr_end'][0]
+        # Checking assumptions about the 5-prime and 3-prime positions
+        # of LR. Should contain all exons and introns between those two
+        # points in the read
+        lr_start = lr_bed_row['lr_start']
+        lr_end = lr_bed_row['lr_end']
 
         # Building logic to grab expected introns and exons for a given LR
-        expected_introns_df = associated_intron_df.loc[
-                             (associated_intron_df['start'] >= lr_start) &
-                             (associated_intron_df['end'] <= lr_end)]
-        expected_exons_df = associated_exon_df.loc[
-                            (associated_exon_df['end'] >= lr_start) &
-                            (associated_exon_df['start'] <= lr_end)]
+        expected_introns_df = transcript_introns.loc[
+                                (transcript_introns['start'] >= lr_start) &
+                                (transcript_introns['end'] <= lr_end)]
+
+        expected_exons_df = transcript_exons.loc[
+                            (transcript_exons['end'] >= lr_start) &
+                            (transcript_exons['start'] <= lr_end)]
 
         # Checking to see if 5-prime end of LR is not in exon 1
-        if np.min(expected_exons_df['exon_id'].str.split(':').apply(lambda x: int(x[2]))) > 1:
+        # TODO, check this logic with the new df naming scheme
+        if np.min(expected_exons_df['exon_id'].str.split(':').apply(lambda x: int(x[-1]))) > 1:
             flag_string.append('5_prime_starts_after_first_exon')
 
         # If a LR doesn't cover a single intron completely
@@ -67,8 +88,8 @@ def classify_reads(lr_bed12_row, ref_exon_df, ref_intron_df):
             splicing_status = 'single_exon_unspliced'
             flag_string.append('read_covers_no_introns')
             num_introns_spliced = 0
-            return [lr_bed12_row.iloc[0].lr_name,
-                    transcript_name,
+            return [lr_bed_row.lr_name,
+                    overlapping_transcript_name,
                     splicing_status,
                     num_introns_spliced,
                     ';'.join(flag_string)]
@@ -77,8 +98,8 @@ def classify_reads(lr_bed12_row, ref_exon_df, ref_intron_df):
         if long_read_introns.empty:
             splicing_status = 'unspliced'
             num_introns_spliced = 0
-            return [lr_bed12_row.iloc[0].lr_name,
-                    transcript_name,
+            return [lr_bed_row.lr_name,
+                    overlapping_transcript_name,
                     splicing_status,
                     num_introns_spliced,
                     ';'.join(flag_string)]
@@ -102,65 +123,65 @@ def classify_reads(lr_bed12_row, ref_exon_df, ref_intron_df):
         # Now time to define splicing status for various types of events
         lr_exons_gene_introns_df = lr_exons_gene_introns.to_dataframe(
                                     header=None,
-                                    names=['chromLR',
-                                           'startLR',
-                                           'endLR',
-                                           'nameLR',
-                                           'scoreLR',
-                                           'strandLR',
-                                           'chromIntron',
-                                           'startIntron',
-                                           'endIntron',
-                                           'nameIntron',
-                                           'scoreIntron',
-                                           'strandIntron',
-                                           'overlapBases'])
+                                    names=['lr_chrom',
+                                           'lr_start',
+                                           'lr_end',
+                                           'lr_name',
+                                           'lr_score',
+                                           'lr_strand',
+                                           'chrom_intron',
+                                           'start_intron',
+                                           'end_intron',
+                                           'name_intron',
+                                           'score_intron',
+                                           'strand_intron',
+                                           'overlap_bases'])
 
         lr_introns_gene_exons_df = lr_introns_gene_exons.to_dataframe(
                                    header=None,
-                                   names=['chromLR',
-                                          'startLR',
-                                          'endLR',
-                                          'nameLR',
-                                          'scoreLR',
-                                          'strandLR',
-                                          'chromExon',
-                                          'startExon',
-                                          'endExon',
-                                          'nameExon',
-                                          'scoreExon',
-                                          'strandExon',
-                                          'overlapBases'])
+                                   names=['lr_chrom',
+                                          'lr_start',
+                                          'lr_end',
+                                          'lr_name',
+                                          'lr_score',
+                                          'lr_strand',
+                                          'exon_chrom',
+                                          'exon_start',
+                                          'exon_end',
+                                          'exon_name',
+                                          'exon_score',
+                                          'exon_strand',
+                                          'overlap_bases'])
 
         lr_introns_gene_introns_df = lr_introns_gene_introns.to_dataframe(
                                      header=None,
-                                     names=['chromLR',
-                                            'startLR',
-                                            'endLR',
-                                            'nameLR',
-                                            'scoreLR',
-                                            'strandLR',
-                                            'chromIntron',
-                                            'startIntron',
-                                            'endIntron',
-                                            'nameIntron',
-                                            'scoreIntron',
-                                            'strandIntron',
-                                            'overlapBases'])
+                                     names=['lr_chrom',
+                                            'lr_start',
+                                            'lr_end',
+                                            'lr_name',
+                                            'lr_score',
+                                            'lr_strand',
+                                            'intron_chrom',
+                                            'intron_start',
+                                            'intron_end',
+                                            'intron_name',
+                                            'intron_score',
+                                            'intron_strand',
+                                            'overlap_bases'])
 
         # Now filtering for more than 7 overlapping bases to allow for
         # some tolerance
         if not lr_exons_gene_introns_df.empty:
             lr_exons_gene_introns_df = lr_exons_gene_introns_df.loc[
-                lr_exons_gene_introns_df['overlapBases'] > 7]
+                lr_exons_gene_introns_df['overlap_bases'] > 7]
 
         if not lr_introns_gene_exons_df.empty:
             lr_introns_gene_exons_df = lr_introns_gene_exons_df.loc[
-                lr_introns_gene_exons_df['overlapBases'] > 7]
+                lr_introns_gene_exons_df['overlap_bases'] > 7]
 
         if not lr_introns_gene_introns_df.empty:
             lr_introns_gene_introns_df = lr_introns_gene_introns_df.loc[
-                lr_introns_gene_introns_df['overlapBases'] > 7]
+                lr_introns_gene_introns_df['overlap_bases'] > 7]
 
         num_introns_spliced = long_read_introns.shape[0]
 
@@ -188,44 +209,22 @@ def classify_reads(lr_bed12_row, ref_exon_df, ref_intron_df):
         flag_string.append('single_exon_gene')
         # Checking for alternative splicing
         # (splicing in a single exon gene)
-        if lr_bed12_row['lr_blocks'][0] > 1:
-
+        if lr_bed_row['lr_blocks'][0] > 1:
             # Append the number of splicing events to the flag string
             flag_string.append(
-                f'count_splicing_events:{lr_bed12_row["lr_blocks"][0]}')
-
+                f'count_splicing_events:{lr_bed_row["lr_blocks"]}')
             # Also append the num introns spliced
-            num_introns_spliced = lr_bed12_row['lr_blocks'][0]
+            num_introns_spliced = lr_bed_row['lr_blocks']
             splicing_status = 'single_exon_alternatively_spliced'
         else:
             splicing_status = 'single_exon_unspliced'
             num_introns_spliced = 0
 
-    return [lr_bed12_row.iloc[0].lr_name,
-            transcript_name,
+    return [lr_bed_row.lr_name,
+            overlapping_transcript_name,
             splicing_status,
             num_introns_spliced,
             ';'.join(flag_string)]
-
-
-def worker(chunk, ref_exon_df, ref_intron_df):
-    """
-    Worker function for multiprocessing. Applies classify_reads to each row in
-    a chunk of a DataFrame.
-
-    Args:
-        chunk (pd.DataFrame): A chunk of a DataFrame containing long read data.
-        ref_exon_df (pd.DataFrame): A DataFrame containing reference exon data.
-        ref_intron_df (pd.DataFrame): A DataFrame containing reference intron
-        data.
-
-    Returns:
-        A DataFrame containing the results of classify_reads applied to each
-        row in the chunk.
-    """
-    return chunk.apply(classify_reads,
-                       args=(ref_exon_df, ref_intron_df),
-                       axis=1)
 
 
 def process_long_reads(lr_data_df, ref_transcript_df,
@@ -284,13 +283,18 @@ def process_long_reads(lr_data_df, ref_transcript_df,
 
     # Create a multiprocessing Pool and apply the worker function to each group
     with mp.Pool() as pool:
-        results = pool.starmap(worker, [(lr_group,
-                                         ref_exon_df,
-                                         ref_intron_df)
-                                        for _, lr_group in lr_groups])
+        results = pool.starmap(classify_reads, [(lr_group,
+                                                ref_exon_df,
+                                                ref_intron_df)
+                                                for _, lr_group in lr_groups])
 
     # Concatenate the results back into a single DataFrame
-    classified_lr_data = pd.concat(results)
+    classified_lr_data = pd.DataFrame(results,
+                                      columns=['lr_name',
+                                               'most_likely_transcript_id',
+                                               'splicing_status',
+                                               'num_introns_spliced',
+                                               'flags'])
 
     # Return the classified long read data
     return classified_lr_data

@@ -1,12 +1,12 @@
 import pathlib as pl
 import pandas as pd
 
-# Functions to process GFF3 files and other inputs.
-# Currently, this module only contains the process_gff3 and
-# process_gff3_utr functions.This function reads in a GFF3 file
-# and returns the transcript, exon and intron information in
-# dataframe format. Future iterations could extend this module
-# to include functions to process other input file types.
+# TODO: Implement path handling for the GFF3 file location
+# TODO: Implement validation for GFF3 file (if you have two distinct exons
+# in a gene, you necessarily have an intron). If the GFF3 file is not
+# formatted correctly, raise an error/correct the error by adding an intron to
+# the ref_intron_df, flag to the user in some log file, and continue. This is
+# being done in the validate_and_correct_exon_and_intron_dfs function.
 
 
 def process_gff(path_gff3=None):
@@ -108,7 +108,7 @@ def process_gff_utrs(path_gff3=None):
     Function to process a GFF3 file and return the 3' and 5' UTR
     regions in dataframe format. This is an optional function and is
     designed to be used in conjunction with the process_gff3 function,
-    but especially if the UTR information is being interrogated.
+    especially if the UTR information is being interrogated.
 
     Args:
       path_gff3: The path to the GFF3 file to process.
@@ -199,14 +199,13 @@ def parse_long_read_introns_exons(long_read_bed12):
     """
 
     # May need to alter this depending on what I pass in as the long read row
-    columns = long_read_bed12.iloc[0].values.flatten().tolist()
-    chrom = columns[0]
-    start = int(columns[1])
-    name = columns[3]
-    strand = columns[5]
-    block_count = int(columns[9])
-    block_sizes = list(map(int, columns[10].split(',')))
-    block_starts = list(map(int, columns[11].split(',')))
+    chrom = long_read_bed12['lr_chrom']
+    start = long_read_bed12['lr_start']
+    name = long_read_bed12['lr_name']
+    strand = long_read_bed12['lr_strand']
+    block_count = int(long_read_bed12['lr_blocks'])
+    block_sizes = list(map(int, long_read_bed12['lr_block_lengths'].split(',')))
+    block_starts = list(map(int, long_read_bed12['lr_block_starts'].split(',')))
 
     # Generating exon start and end coordinates
     exon_starts = [start + block_starts[i] for i in range(block_count)]
@@ -260,6 +259,30 @@ def parse_long_read_introns_exons(long_read_bed12):
                                       'strand'])
 
     return exon_df, intron_df
+
+def validate_and_correct_exon_and_intron_dfs(exon_df, intron_df):
+    '''
+    Function to validate the exon and intron dataframes generated from the
+    GFF3 file and correct them if necessary. This function will check if
+    the assumptions about the exon-intron relationship are correct in the GFF3.
+    For every two exons, there should be an intron. If this is not the case,
+    the function will add an intron entry to the intron_df and flag this to the
+    user in a log file.
+
+    Args:
+        exon_df (pd.DataFrame): A dataframe containing exon coordinate
+        information from a GFF3.
+        intron_df (pd.DataFrame): A dataframe containing intron coordinate
+        information from a GFF3.
+
+    Returns:
+        exon_df (pd.DataFrame): A dataframe containing exon coordinate
+        information with any necessary corrections.
+        intron_df (pd.DataFrame): A dataframe containing intron coordinate
+        information with any necessary corrections.
+    '''
+
+    return 0
 
 
 def main():
