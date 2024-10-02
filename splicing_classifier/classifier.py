@@ -205,6 +205,8 @@ def classify_reads(lr_bed_row_df, ref_exon_df, ref_intron_df):
             splicing_status = 'check_gene'
 
     # Workflow for single exon genes
+    # TODO Check that this works correctly for unspliced reads/genes
+    # with no introns
     else:
         flag_string.append('single_exon_gene')
         # Checking for alternative splicing
