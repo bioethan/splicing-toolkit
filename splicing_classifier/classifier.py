@@ -1,8 +1,8 @@
+import multiprocessing as mp
 import pandas as pd
 import numpy as np
 import pybedtools as pybed
-import multiprocessing as mp
-from process_inputs import parse_long_read_introns_exons
+from .process_inputs import parse_long_read_introns_exons
 
 # TODO: Allow for more specification in multiprocessing.
 # TODO: Add more flags for different types of splicing events
@@ -112,13 +112,10 @@ def classify_reads(lr_bed_row_df, ref_exon_df, ref_intron_df):
 
         # We want to define a tolerance (about how many bases are required
         # for an overlap to officially occur?)
-        # Current threshold is greater than 5 bases
-        lr_exons_gene_introns = long_read_exons_bed.intersect(
-                                expected_intron_bed, wo=True)
-        lr_introns_gene_exons = long_read_introns_bed.intersect(
-                                expected_exon_bed, wo=True)
-        lr_introns_gene_introns = long_read_introns_bed.intersect(
-                                  expected_intron_bed, wo=True)
+        # Current threshold is greater than 7 bases
+        lr_exons_gene_introns = long_read_exons_bed.intersect(expected_intron_bed, wo=True)
+        lr_introns_gene_exons = long_read_introns_bed.intersect(expected_exon_bed, wo=True)
+        lr_introns_gene_introns = long_read_introns_bed.intersect(expected_intron_bed, wo=True)
 
         # Now time to define splicing status for various types of events
         lr_exons_gene_introns_df = lr_exons_gene_introns.to_dataframe(
@@ -252,9 +249,7 @@ def process_long_reads(lr_data_df, ref_transcript_df,
     lr_data_bed = pybed.BedTool.from_dataframe(lr_data_df)
     ref_transcript_bed = pybed.BedTool.from_dataframe(ref_transcript_df)
 
-    data_gene_intersect = lr_data_bed.intersect(ref_transcript_bed,
-                                                s=True,
-                                                wo=True)
+    data_gene_intersect = lr_data_bed.intersect(ref_transcript_bed, s=True, wo=True)
 
     # Defining the specific dfs from the gene intersect
     overlap_df = data_gene_intersect.to_dataframe(header=None,
@@ -302,9 +297,5 @@ def process_long_reads(lr_data_df, ref_transcript_df,
     return classified_lr_data
 
 
-def main():
-    return 0
-
-
 if __name__ == '__main__':
-    main()
+    print(0)
